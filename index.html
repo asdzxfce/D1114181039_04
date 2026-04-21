@@ -3,34 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Adventure | 學號專案</title>
+    <title>Space Adventure Pro | 升級系統版</title>
     <style>
         @import url('https://googleapis.com');
         body { text-align: center; background: #000; color: #0f0; font-family: 'Press Start 2P', cursive; margin: 0; overflow: hidden; image-rendering: pixelated; }
-        canvas { background: #000; display: block; margin: 0 auto; border: 4px solid #fff; cursor: crosshair; }
-        #ui, #game-over { position: absolute; width: 100%; pointer-events: none; z-index: 10; }
+        canvas { background: #000; display: block; margin: 0 auto; border: 4px solid #333; }
+        #ui, #game-over, #upgrade-menu { position: absolute; width: 100%; pointer-events: none; z-index: 10; }
         #ui { top: 20px; }
-        #game-over { top: 50%; transform: translateY(-50%); display: none; background: rgba(0, 0, 0, 0.9); padding: 30px 0; pointer-events: auto; border-top: 4px solid #f00; border-bottom: 4px solid #f00; }
-        button { font-family: 'Press Start 2P', cursive; background: #0f0; color: #000; border: none; padding: 10px 20px; cursor: pointer; margin-top: 20px; }
-        .leaderboard { font-size: 12px; color: #ff0; margin-top: 15px; }
+        #game-over, #upgrade-menu { top: 50%; transform: translateY(-50%); display: none; background: rgba(0, 0, 0, 0.9); padding: 30px 0; pointer-events: auto; border-top: 4px solid #0f0; border-bottom: 4px solid #0f0; }
+        #game-over { border-color: #f00; }
+        .upgrade-btn { background: #222; color: #0f0; border: 2px solid #0f0; padding: 15px; margin: 10px; cursor: pointer; display: inline-block; width: 250px; font-family: 'Press Start 2P'; font-size: 10px; }
+        .upgrade-btn:hover { background: #0f0; color: #000; }
+        #xp-bar-container { width: 300px; height: 10px; border: 2px solid #fff; margin: 10px auto; }
+        #xp-bar { width: 0%; height: 100%; background: #ff0; }
+        .hint { font-size: 8px; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <!-- 標題圖片 -->
-        <img src="space_adventure_logo_black_bg.png" alt="Logo" width="120"><br>
-        <div style="font-size: 14px; margin-top:10px;">SCORE: <span id="score">000</span></div>
+        <img src="space_adventure_logo_black_bg.png" alt="Logo" width="140"><br>
+        <div style="font-size: 12px; color: #fff;">LVL: <span id="lvl">1</span> | SCORE: <span id="score">000</span></div>
+        <div id="xp-bar-container"><div id="xp-bar"></div></div>
+        <div class="hint">[WASD]移動 [ESC]結束</div>
+    </div>
+
+    <!-- 升級選單 -->
+    <div id="upgrade-menu">
+        <h2 style="color: #ff0;">LEVEL UP!</h2>
+        <p style="font-size: 10px;">CHOOSE YOUR WEAPON</p>
+        <div class="upgrade-btn" onclick="upgrade('spread')">散彈槍 (SPREAD)</div><br>
+        <div class="upgrade-btn" onclick="upgrade('rapid')">高速雷射 (RAPID)</div><br>
+        <div class="upgrade-btn" onclick="upgrade('heavy')">重型巨砲 (HEAVY)</div>
     </div>
 
     <div id="game-over">
         <h2 style="color: #f00;">MISSION FAILED</h2>
         <div id="final-score">SCORE: 0</div>
-        <div class="leaderboard">
-            <div>-- HIGH SCORES --</div>
-            <div id="high-scores"></div>
-        </div>
-        <button onclick="resetGame()">RETRY</button>
+        <button onclick="location.reload()" style="font-family:'Press Start 2P'; padding:10px; margin-top:20px; cursor:pointer;">RESTART</button>
     </div>
     
     <canvas id="gameCanvas"></canvas>
@@ -40,123 +50,127 @@
         const ctx = canvas.getContext('2d');
         canvas.width = 400; canvas.height = 600;
 
-        let score = 0;
-        let isGameOver = false;
-        let player = { x: 180, y: 500, size: 40, speed: 5 };
-        let bullets = [];
-        let enemies = [];
+        let score = 0, level = 1, xp = 0, xpNext = 50;
+        let isGameOver = false, isPaused = false;
+        let weaponType = 'normal'; // normal, spread, rapid, heavy
+        
+        let player = { x: 180, y: 500, size: 40, speed: 6 };
+        let bullets = [], enemies = [], exps = [];
         let keys = {};
-        let mouse = { x: 180, y: 500 };
 
-        // 載入圖片
-        const playerImg = new Image(); playerImg.src = 'shotgame.webp'; // 玩家繼續使用原本的 Logo
+        const playerImg = new Image(); playerImg.src = 'shotgame.webp';
         const enemyImg = new Image(); enemyImg.src = 'space_shooter_logo_red.png';
 
-        // 監聽控制
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
-            if (e.code === 'Escape') endGame(); // Esc 結束遊戲
+            if (e.code === 'Escape') endGame();
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
-        
-        canvas.addEventListener('mousemove', e => {
-            const rect = canvas.getBoundingClientRect();
-            mouse.x = (e.clientX - rect.left) / (rect.right - rect.left) * canvas.width;
-            mouse.y = (e.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height;
-        });
 
         function spawnEnemy() {
-            if (!isGameOver) enemies.push({ x: Math.random() * (canvas.width - 35), y: -40, size: 35, speed: 2 + (score/150) });
+            if (!isGameOver && !isPaused) 
+                enemies.push({ x: Math.random() * (canvas.width - 35), y: -50, size: 35, speed: 2 + (level*0.3) });
         }
-        setInterval(spawnEnemy, 800);
+        setInterval(spawnEnemy, 1000);
+
+        function fire() {
+            if (weaponType === 'normal') {
+                bullets.push({ x: player.x + player.size/2 - 2, y: player.y, w: 4, h: 10, vx: 0, vy: -8, type: 'n' });
+            } else if (weaponType === 'spread') {
+                bullets.push({ x: player.x + player.size/2 - 2, y: player.y, w: 4, h: 10, vx: -2, vy: -7 });
+                bullets.push({ x: player.x + player.size/2 - 2, y: player.y, w: 4, h: 10, vx: 0, vy: -8 });
+                bullets.push({ x: player.x + player.size/2 - 2, y: player.y, w: 4, h: 10, vx: 2, vy: -7 });
+            } else if (weaponType === 'rapid') {
+                bullets.push({ x: player.x + player.size/2 - 2, y: player.y, w: 3, h: 8, vx: 0, vy: -12 });
+            } else if (weaponType === 'heavy') {
+                bullets.push({ x: player.x + player.size/2 - 10, y: player.y, w: 20, h: 20, vx: 0, vy: -5, type: 'h' });
+            }
+        }
+
+        function upgrade(type) {
+            weaponType = type;
+            isPaused = false;
+            document.getElementById('upgrade-menu').style.display = 'none';
+        }
 
         function update() {
-            if (isGameOver) return;
+            if (isGameOver || isPaused) return;
 
-            // 鍵盤前後左右移動
             if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) player.x -= player.speed;
             if ((keys['ArrowRight'] || keys['KeyD']) && player.x < canvas.width - player.size) player.x += player.speed;
             if ((keys['ArrowUp'] || keys['KeyW']) && player.y > 0) player.y -= player.speed;
             if ((keys['ArrowDown'] || keys['KeyS']) && player.y < canvas.height - player.size) player.y += player.speed;
 
-            // 滑鼠追隨 (平滑移動)
-            player.x += (mouse.x - (player.x + player.size/2)) * 0.1;
-            player.y += (mouse.y - (player.y + player.size/2)) * 0.1;
-
-            // 自動射擊或按空白鍵
-            if (keys['Space'] || true) { 
-                if (bullets.length === 0 || bullets[bullets.length - 1].y < player.y - 30) {
-                    bullets.push({ x: player.x + player.size / 2 - 2, y: player.y, w: 4, h: 10 });
-                }
+            // 射擊頻率控制
+            let cooldown = weaponType === 'rapid' ? 100 : 400;
+            if (!player.lastFire || Date.now() - player.lastFire > cooldown) {
+                fire(); player.lastFire = Date.now();
             }
 
-            bullets.forEach((b, bi) => {
-                b.y -= 8;
-                if (b.y < 0) bullets.splice(bi, 1);
+            bullets.forEach((b, i) => {
+                b.x += b.vx; b.y += b.vy;
+                if (b.y < -20) bullets.splice(i, 1);
             });
 
             enemies.forEach((en, ei) => {
                 en.y += en.speed;
-                // 碰撞偵測 (與敵人相撞)
-                if (en.x < player.x + player.size - 10 && en.x + en.size > player.x + 10 && 
-                    en.y < player.y + player.size - 10 && en.y + en.size > player.y + 10) {
-                    endGame();
-                }
-                // 子彈擊中敵人
+                if (en.y > 600) enemies.splice(ei, 1);
+                
+                // 玩家碰撞
+                if (Math.abs(en.x - player.x) < 30 && Math.abs(en.y - player.y) < 30) endGame();
+
+                // 子彈擊中
                 bullets.forEach((b, bi) => {
                     if (b.x < en.x + en.size && b.x + b.w > en.x && b.y < en.y + en.size && b.y + b.h > en.y) {
+                        exps.push({ x: en.x + en.size/2, y: en.y + en.size/2 });
                         enemies.splice(ei, 1);
-                        bullets.splice(bi, 1);
+                        if (b.type !== 'h') bullets.splice(bi, 1); // 重砲穿透
                         score += 10;
                         document.getElementById('score').innerText = score.toString().padStart(3, '0');
                     }
                 });
-                if (en.y > canvas.height) enemies.splice(ei, 1);
+            });
+
+            // 經驗值收集
+            exps.forEach((e, i) => {
+                e.y += 2;
+                if (Math.abs(e.x - (player.x + 20)) < 40 && Math.abs(e.y - (player.y + 20)) < 40) {
+                    exps.splice(i, 1);
+                    xp += 20;
+                    if (xp >= xpNext) {
+                        level++;
+                        xp = 0; xpNext += 50;
+                        isPaused = true;
+                        document.getElementById('upgrade-menu').style.display = 'block';
+                        document.getElementById('lvl').innerText = level;
+                    }
+                    document.getElementById('xp-bar').style.width = (xp / xpNext * 100) + '%';
+                }
             });
         }
 
         function draw() {
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 400, 600);
             
-            // 星空背景
-            ctx.fillStyle = '#555';
-            for(let i=0; i<15; i++) ctx.fillRect(Math.random()*canvas.width, (Date.now()/10 + i*50)%canvas.height, 2, 2);
+            // 畫經驗值 (黃色方塊)
+            ctx.fillStyle = '#ff0';
+            exps.forEach(e => ctx.fillRect(e.x, e.y, 8, 8));
 
-            if (!isGameOver) {
-                ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
-                ctx.fillStyle = '#ff0';
-                bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-                enemies.forEach(en => ctx.drawImage(enemyImg, en.x, en.y, en.size, en.size));
-            }
+            // 畫玩家與敵人
+            ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
+            enemies.forEach(en => ctx.drawImage(enemyImg, en.x, en.y, en.size, en.size));
+
+            // 畫子彈
+            bullets.forEach(b => {
+                ctx.fillStyle = weaponType === 'heavy' ? '#f00' : '#0ff';
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+            });
         }
 
         function endGame() {
-            if (isGameOver) return;
             isGameOver = true;
             document.getElementById('game-over').style.display = 'block';
             document.getElementById('final-score').innerText = "SCORE: " + score;
-            saveScore(score);
-            showLeaderboard();
-        }
-
-        function saveScore(s) {
-            let scores = JSON.parse(localStorage.getItem('space_scores') || "[]");
-            scores.push(s);
-            scores.sort((a, b) => b - a);
-            localStorage.setItem('space_scores', JSON.stringify(scores.slice(0, 5)));
-        }
-
-        function showLeaderboard() {
-            let scores = JSON.parse(localStorage.getItem('space_scores') || "[]");
-            document.getElementById('high-scores').innerHTML = scores.map((s, i) => `<div>#${i+1} - ${s}</div>`).join('');
-        }
-
-        function resetGame() {
-            score = 0; document.getElementById('score').innerText = "000";
-            isGameOver = false; enemies = []; bullets = [];
-            player.x = 180; player.y = 500;
-            document.getElementById('game-over').style.display = 'none';
         }
 
         function loop() { update(); draw(); requestAnimationFrame(loop); }
