@@ -3,52 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Adventure | Level Up System</title>
+    <title>Space Adventure | Ultimate Edition</title>
     <style>
         @import url('https://googleapis.com');
         body { text-align: center; background: #000; color: #0f0; font-family: 'Press Start 2P', cursive; margin: 0; overflow: hidden; image-rendering: pixelated; }
-        canvas { background: #000; display: block; margin: 0 auto; border: 4px solid #333; }
+        canvas { background: #000; display: block; margin: 0 auto; border: 4px solid #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
         
-        /* UI 容器 */
         #ui { position: absolute; top: 10px; width: 100%; pointer-events: none; z-index: 10; }
-        #xp-container { width: 200px; height: 12px; border: 2px solid #fff; margin: 5px auto; background: #222; }
-        #xp-bar { width: 0%; height: 100%; background: #ff0; transition: width 0.2s; }
+        #xp-container { width: 250px; height: 10px; border: 2px solid #fff; margin: 8px auto; background: #222; }
+        #xp-bar { width: 0%; height: 100%; background: #ff0; transition: width 0.3s; }
         
-        /* 升級選單與結束畫面 */
         #upgrade-menu, #game-over { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 300px; background: rgba(0, 0, 0, 0.95); border: 4px solid #0f0;
+            width: 320px; background: rgba(0, 0, 0, 0.95); border: 4px solid #0f0;
             padding: 20px; display: none; z-index: 100; pointer-events: auto;
         }
         #game-over { border-color: #f00; }
         
-        .opt { background: #222; color: #0f0; border: 2px solid #0f0; padding: 10px; margin: 10px 0; cursor: pointer; font-size: 10px; }
+        .opt { background: #111; color: #0f0; border: 2px solid #0f0; padding: 12px; margin: 12px 0; cursor: pointer; font-size: 10px; transition: 0.2s; }
         .opt:hover { background: #0f0; color: #000; }
-        .hint { font-size: 8px; color: #666; margin-top: 5px; }
+        .hint { font-size: 8px; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <img src="space_adventure_logo_black_bg.png" alt="Logo" width="120"><br>
-        <div style="font-size: 10px;">SCORE: <span id="score">000</span> | LV: <span id="lvl">1</span></div>
+        <img src="space_adventure_logo_black_bg.png" alt="Logo" width="130"><br>
+        <div style="font-size: 10px; color: #fff; margin-top:5px;">LV: <span id="lvl">1</span> | SCORE: <span id="score">000</span></div>
         <div id="xp-container"><div id="xp-bar"></div></div>
-        <div class="hint">[WASD]控制 | [ESC]結束</div>
+        <div class="hint">[WASD]移動 [ESC]直接結算</div>
     </div>
 
     <!-- 升級選單 -->
     <div id="upgrade-menu">
-        <h2 style="color:#ff0; font-size:16px;">LEVEL UP!</h2>
-        <div class="opt" onclick="applyUpgrade('spread')">SPREAD (三向散彈)</div>
-        <div class="opt" onclick="applyUpgrade('rapid')">RAPID (高速雷射)</div>
-        <div class="opt" onclick="applyUpgrade('heavy')">HEAVY (重型穿透)</div>
+        <h2 style="color:#ff0; font-size:14px; margin-bottom:20px;">SYSTEM UPGRADE</h2>
+        <div class="opt" onclick="applyUpgrade('spread')">WPN: SPREAD (散彈)</div>
+        <div class="opt" onclick="applyUpgrade('rapid')">WPN: RAPID (射速)</div>
+        <div class="opt" onclick="applyUpgrade('heavy')">WPN: HEAVY (穿透)</div>
+        <p style="font-size:8px; color:#aaa;">SELECT YOUR AUGMENT</p>
     </div>
 
-    <!-- 結束畫面 -->
+    <!-- 遊戲結束 -->
     <div id="game-over">
-        <h2 style="color:#f00; font-size:16px;">TERMINATED</h2>
-        <p id="final-score">SCORE: 0</p>
-        <button class="opt" onclick="location.reload()">RETRY</button>
+        <h2 style="color:#f00; font-size:14px;">MISSION FAILED</h2>
+        <p id="final-score" style="font-size:12px;">SCORE: 0</p>
+        <button class="opt" onclick="location.reload()" style="width:100%">RE-DEPLOY</button>
     </div>
     
     <canvas id="gameCanvas"></canvas>
@@ -56,13 +55,13 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 400; canvas.height = 600;
+        canvas.width = 400; canvas.height = 650;
 
         let score = 0, lvl = 1, xp = 0, xpNext = 100;
         let isGameOver = false, isPaused = false;
-        let weapon = 'normal'; // normal, spread, rapid, heavy
+        let weapon = 'normal'; 
         
-        let player = { x: 180, y: 500, size: 40, speed: 6 };
+        let player = { x: 180, y: 550, size: 40, speed: 7 };
         let bullets = [], enemies = [], drops = [];
         let keys = {};
 
@@ -71,13 +70,13 @@
 
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
-            if(e.code === 'Escape') endGame();
+            if(e.code === 'Escape' && !isGameOver) endGame();
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
 
         function spawn() {
             if(!isGameOver && !isPaused) 
-                enemies.push({ x: Math.random()*360, y: -40, size: 35, hp: 1, speed: 2 + (lvl*0.2) });
+                enemies.push({ x: Math.random()*360, y: -50, size: 35, speed: 2 + (lvl*0.25) });
         }
         setInterval(spawn, 1000);
 
@@ -90,14 +89,14 @@
         function update() {
             if (isGameOver || isPaused) return;
 
-            // 移動
+            // 鍵盤移動 (八向控制)
             if ((keys.KeyA || keys.ArrowLeft) && player.x > 0) player.x -= player.speed;
             if ((keys.KeyD || keys.ArrowRight) && player.x < 360) player.x += player.speed;
             if ((keys.KeyW || keys.ArrowUp) && player.y > 0) player.y -= player.speed;
-            if ((keys.KeyS || keys.ArrowDown) && player.y < 560) player.y += player.speed;
+            if ((keys.KeyS || keys.ArrowDown) && player.y < 600) player.y += player.speed;
 
-            // 自動射擊
-            let rate = (weapon === 'rapid') ? 150 : 400;
+            // 武器發射邏輯
+            let rate = (weapon === 'rapid') ? 120 : 400;
             if(!player.lastF || Date.now() - player.lastF > rate) {
                 if(weapon === 'spread') {
                     bullets.push({x: player.x+18, y: player.y, vx: -2, vy: -7, w:4, h:10});
@@ -111,52 +110,63 @@
                 player.lastF = Date.now();
             }
 
-            // 子彈與敵人碰撞
+            // 更新子彈
             bullets.forEach((b, bi) => {
                 b.x += b.vx || 0; b.y += b.vy;
-                enemies.forEach((en, ei) => {
+                if (b.y < -20) bullets.splice(bi, 1);
+            });
+
+            // 敵人邏輯
+            enemies.forEach((en, ei) => {
+                en.y += en.speed;
+                // 玩家相撞判定
+                if(Math.abs(en.x - player.x) < 30 && Math.abs(en.y - player.y) < 30) endGame();
+
+                // 子彈擊中敵人
+                bullets.forEach((b, bi) => {
                     if(b.x < en.x+en.size && b.x+b.w > en.x && b.y < en.y+en.size && b.y+b.h > en.y) {
-                        drops.push({x: en.x+15, y: en.y+15}); // 必掉經驗值
+                        // 100% 掉落黃色經驗值
+                        drops.push({x: en.x+12, y: en.y+12, active: true});
                         enemies.splice(ei, 1);
                         if(!b.p) bullets.splice(bi, 1);
                         score += 10;
-                        document.getElementById('score').innerText = score;
+                        document.getElementById('score').innerText = score.toString().padStart(3, '0');
                     }
                 });
+                if(en.y > 700) enemies.splice(ei, 1);
             });
 
-            // 經驗值收集
+            // 經驗值掉落與吸取
             drops.forEach((d, di) => {
-                d.y += 2;
-                if(Math.abs(d.x - player.x) < 40 && Math.abs(d.y - player.y) < 40) {
+                d.y += 2.5; // 掉落速度
+                // 碰撞判定：玩家去碰黃色方塊
+                if(Math.abs(d.x - (player.x+15)) < 35 && Math.abs(d.y - (player.y+15)) < 35) {
                     drops.splice(di, 1);
-                    xp += 35;
+                    xp += 40; 
                     if(xp >= xpNext) {
                         isPaused = true;
                         document.getElementById('upgrade-menu').style.display = 'block';
-                        lvl++; xp = 0; xpNext += 50;
+                        lvl++; xp = 0; xpNext += 60;
                         document.getElementById('lvl').innerText = lvl;
                     }
-                    document.getElementById('xp-bar').style.width = (xp/xpNext*100)+'%';
+                    document.getElementById('xp-bar').style.width = Math.min(100, (xp/xpNext*100)) + '%';
                 }
-                if(d.y > 600) drops.splice(di, 1);
-            });
-
-            enemies.forEach(en => {
-                en.y += en.speed;
-                if(Math.abs(en.x - player.x) < 30 && Math.abs(en.y - player.y) < 30) endGame();
+                if(d.y > 700) drops.splice(di, 1);
             });
         }
 
         function draw() {
-            ctx.clearRect(0,0,400,600);
-            // 畫經驗值
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            
+            // 繪製經驗值 (黃色閃爍方塊)
             ctx.fillStyle = '#ff0';
-            drops.forEach(d => ctx.fillRect(d.x, d.y, 10, 10));
-            // 畫子彈
+            drops.forEach(d => ctx.fillRect(d.x, d.y, 12, 12));
+
+            // 繪製子彈
             ctx.fillStyle = (weapon==='heavy') ? '#f00' : '#0ff';
             bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-            // 畫人機
+
+            // 繪製戰機與敵人
             ctx.drawImage(pImg, player.x, player.y, player.size, player.size);
             enemies.forEach(en => ctx.drawImage(eImg, en.x, en.y, en.size, en.size));
         }
@@ -164,7 +174,7 @@
         function endGame() {
             isGameOver = true;
             document.getElementById('game-over').style.display = 'block';
-            document.getElementById('final-score').innerText = "SCORE: " + score;
+            document.getElementById('final-score').innerText = "FINAL SCORE: " + score;
         }
 
         function loop() { update(); draw(); requestAnimationFrame(loop); }
