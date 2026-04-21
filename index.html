@@ -3,66 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-Bit Space Shooter | 學號挑戰</title>
+    <title>8-Bit Space Shooter | 學號專案</title>
     <style>
-        /* 8-bit 復古字體與配色 */
         @import url('https://googleapis.com');
 
         body { 
-            text-align: center; 
-            background: #000; 
-            color: #0f0; 
-            font-family: 'Press Start 2P', cursive; 
-            margin: 0; 
-            overflow: hidden; 
-            image-rendering: pixelated; /* 讓圖片呈現像素感 */
+            text-align: center; background: #000; color: #0f0; 
+            font-family: 'Press Start 2P', cursive; margin: 0; overflow: hidden; 
+            image-rendering: pixelated; 
         }
         
-        #ui { 
-            position: absolute; 
-            top: 20px; 
-            width: 100%; 
-            pointer-events: none; 
-            text-shadow: 2px 2px #f00;
-        }
-
         canvas { 
-            background: #000; 
-            display: block; 
-            margin: 0 auto; 
-            border: 4px solid #fff;
-            image-rendering: pixelated;
-            max-width: 100vw;
-            max-height: 80vh;
+            background: #000; display: block; margin: 20px auto; 
+            border: 4px solid #fff; max-width: 95vw; max-height: 70vh;
         }
 
-        .logo { 
-            margin-bottom: 10px; 
-            border: 2px solid #fff; 
-            background: #222;
-            image-rendering: pixelated; /* 強制 Logo 像素化 */
+        /* 介面樣式 */
+        #ui, #game-over { position: absolute; width: 100%; pointer-events: none; }
+        #ui { top: 30px; }
+        #game-over { 
+            top: 50%; transform: translateY(-50%); display: none; 
+            background: rgba(0, 0, 0, 0.85); padding: 20px 0; pointer-events: auto;
         }
 
-        .instruction { font-size: 10px; color: #aaa; margin-top: 10px; }
+        .logo { border: 2px solid #fff; margin-bottom: 10px; }
+        button { 
+            font-family: 'Press Start 2P', cursive; background: #0f0; 
+            color: #000; border: none; padding: 10px 20px; cursor: pointer; margin-top: 20px;
+        }
+        .leaderboard { font-size: 12px; color: #ff0; margin-top: 15px; line-height: 1.5; }
     </style>
 </head>
 <body>
+
     <div id="ui">
         <img src="shotgame.webp" alt="Logo" class="logo" width="60">
-        <div style="font-size: 18px;">SCORE: <span id="score">000</span></div>
+        <div style="font-size: 16px;">SCORE: <span id="score">000</span></div>
+    </div>
+
+    <!-- 結束畫面與排行榜 -->
+    <div id="game-over">
+        <h2 style="color: #f00;">GAME OVER</h2>
+        <div id="final-score">FINAL SCORE: 0</div>
+        <div class="leaderboard">
+            <div>--- TOP 3 ---</div>
+            <div id="high-scores"></div>
+        </div>
+        <button onclick="resetGame()">PLAY AGAIN</button>
     </div>
     
     <canvas id="gameCanvas"></canvas>
-    <p class="instruction">[←/→] 移動 | [SPACE] 射擊 | 或點擊畫面兩側操控</p>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 320; // 降低解析度以符合 8-bit 風格
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('game-over');
+        const highScoresEl = document.getElementById('high-scores');
+        
+        canvas.width = 320; 
         canvas.height = 480;
 
         let score = 0;
-        let player = { x: 140, y: 400, size: 32, speed: 4 };
+        let isGameOver = false;
+        let player = { x: 140, y: 400, size: 32, speed: 5 };
         let bullets = [];
         let enemies = [];
         let keys = {};
@@ -70,31 +74,29 @@
         const playerImg = new Image();
         playerImg.src = 'shotgame.webp';
 
-        // 鍵盤監聽
+        // 監聽按鍵與點擊
         window.addEventListener('keydown', e => keys[e.code] = true);
         window.addEventListener('keyup', e => keys[e.code] = false);
-
-        // 點擊/觸控監聽 (點左走左，點右走右)
-        canvas.addEventListener('touchstart', handleInput);
-        canvas.addEventListener('mousedown', handleInput);
-        function handleInput(e) {
+        canvas.addEventListener('mousedown', (e) => {
+            if (isGameOver) return;
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const x = (clientX - rect.left) / (rect.right - rect.left) * canvas.width;
-            if (x < canvas.width / 2) { player.x -= 15; } else { player.x += 15; }
+            const x = (e.clientX - rect.left) / (rect.right - rect.left) * canvas.width;
+            player.x = x - player.size/2;
             fire();
-        }
+        });
 
         function spawnEnemy() {
-            enemies.push({ x: Math.random() * (canvas.width - 20), y: -20, size: 20, speed: 1.5 + (score/100) });
+            if (!isGameOver) enemies.push({ x: Math.random() * (canvas.width - 24), y: -24, size: 24, speed: 2 + (score/200) });
         }
-        setInterval(spawnEnemy, 1200);
+        let enemyTimer = setInterval(spawnEnemy, 1000);
 
         function fire() {
             bullets.push({ x: player.x + player.size / 2 - 2, y: player.y, w: 4, h: 8 });
         }
 
         function update() {
+            if (isGameOver) return;
+
             if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
             if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
             if (keys['Space']) {
@@ -102,23 +104,23 @@
             }
 
             bullets.forEach((b, bi) => {
-                b.y -= 6;
+                b.y -= 7;
                 if (b.y < 0) bullets.splice(bi, 1);
             });
 
             enemies.forEach((en, ei) => {
                 en.y += en.speed;
                 // 碰撞檢測
-                if (en.x < player.x + player.size - 5 && en.x + en.size > player.x + 5 && en.y < player.y + player.size - 5 && en.y + en.size > player.y + 5) {
-                    alert("GAME OVER\nSCORE: " + score);
-                    document.location.reload();
+                if (en.x < player.x + 25 && en.x + en.size > player.x + 5 && en.y < player.y + 25 && en.y + en.size > player.y + 5) {
+                    endGame();
                 }
+                // 擊中敵機
                 bullets.forEach((b, bi) => {
                     if (b.x < en.x + en.size && b.x + b.w > en.x && b.y < en.y + en.size && b.y + b.h > en.y) {
                         enemies.splice(ei, 1);
                         bullets.splice(bi, 1);
                         score += 10;
-                        document.getElementById('score').innerText = score.toString().padStart(3, '0');
+                        scoreEl.innerText = score.toString().padStart(3, '0');
                     }
                 });
                 if (en.y > canvas.height) enemies.splice(ei, 1);
@@ -126,24 +128,51 @@
         }
 
         function draw() {
-            // 背景黑白閃爍星空感
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // 隨機畫一點像素星星
+            // 隨機星空
             ctx.fillStyle = '#fff';
-            for(let i=0; i<5; i++) ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
+            for(let i=0; i<8; i++) ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
 
-            // 畫玩家 (你的 Logo)
-            ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
-            
-            // 畫 8-bit 子彈
-            ctx.fillStyle = '#ff0';
-            bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-            
-            // 畫 8-bit 敵人 (紫色方塊)
-            ctx.fillStyle = '#f0f';
-            enemies.forEach(en => ctx.fillRect(en.x, en.y, en.size, en.size));
+            if (!isGameOver) {
+                ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
+                ctx.fillStyle = '#ff0';
+                bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+                ctx.fillStyle = '#f0f';
+                enemies.forEach(en => ctx.fillRect(en.x, en.y, en.size, en.size));
+            }
+        }
+
+        function endGame() {
+            isGameOver = true;
+            gameOverEl.style.display = 'block';
+            document.getElementById('final-score').innerText = "FINAL SCORE: " + score;
+            saveHighScore(score);
+            showLeaderboard();
+        }
+
+        function saveHighScore(newScore) {
+            let scores = JSON.parse(localStorage.getItem('shooting_scores') || "[]");
+            scores.push(newScore);
+            scores.sort((a, b) => b - a);
+            scores = scores.slice(0, 3); // 只取前三名
+            localStorage.setItem('shooting_scores', JSON.stringify(scores));
+        }
+
+        function showLeaderboard() {
+            let scores = JSON.parse(localStorage.getItem('shooting_scores') || "[]");
+            highScoresEl.innerHTML = scores.map((s, i) => `<div>#${i+1} - ${s}</div>`).join('');
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreEl.innerText = "000";
+            isGameOver = false;
+            enemies = [];
+            bullets = [];
+            player.x = 140;
+            gameOverEl.style.display = 'none';
         }
 
         function loop() { update(); draw(); requestAnimationFrame(loop); }
